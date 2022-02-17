@@ -1,0 +1,104 @@
+---
+title: "Multiple Columns"
+output: flexdashboard::flex_dashboard
+---
+
+
+
+```{r, echo=FALSE}
+#install.packages('rnaturalearth')
+library(rnaturalearth)
+map <- ne_countries()
+names(map)[names(map) == "iso_a3"] <- "ISO3"
+names(map)[names(map) == "name"] <- "NAME"
+
+#library(sp)
+#plot(map)
+
+
+library(wbstats)
+indicators <- wbsearch(pattern = "pollution")
+
+d <- wb(
+  indicator = "EN.ATM.PM25.MC.M3",
+  startdate = 2016, enddate = 2016
+)  ## TO DOWNLOAD DATA
+#head(d)
+
+
+map$PM2.5 <- d[match(map$ISO3, d$iso3c), "value"] ## Estoy macheando code map que es iso3 y code in data que esta en iso3c
+#head(map@data)
+```
+
+
+   
+Column {data-width=600}
+-------------------------------------
+
+### Component 1
+
+```{r}
+###CREAR LEAFMAP
+
+library(leaflet)
+
+pal <- colorBin(
+  palette = "viridis", domain = map$PM2.5,
+  bins = seq(0, max(map$PM2.5, na.rm = TRUE) + 10, by = 10)
+)
+
+
+map$labels <- paste0(
+  "<strong> Country: </strong> ",
+  map$NAME, "<br/> ",
+  "<strong> PM2.5: </strong> ",
+  map$PM2.5, "<br/> "
+) %>%
+  lapply(htmltools::HTML)
+
+leaflet(map) %>%
+  addTiles() %>%
+  setView(lng = 0, lat = 30, zoom = 2) %>%
+  addPolygons(
+    fillColor = ~ pal(PM2.5),
+    color = "white",
+    fillOpacity = 0.7,
+    label = ~labels,
+    highlight = highlightOptions(
+      color = "black",
+      bringToFront = TRUE
+    )
+  ) %>%
+  leaflet::addLegend(
+    pal = pal, values = ~PM2.5,
+    opacity = 0.7, title = "PM2.5"
+  )
+```
+
+ 
+
+
+
+   
+Column {data-width=400}
+-------------------------------------
+   
+### Component 2
+
+```{r}
+## CREAR TABLA
+library(DT)
+DT::datatable(map@data[, c("ISO3", "NAME", "PM2.5")],
+  rownames = FALSE, options = list(pageLength = 10)
+)  ### NO QUIERO ROWNAMES 
+
+
+```   
+ 
+### Component 3
+    
+```{r}
+###CREAR HISTOGRAM
+library(ggplot2)
+ggplot(data = map@data, aes(x = PM2.5)) + geom_histogram()
+```
